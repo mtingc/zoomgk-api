@@ -10,9 +10,10 @@ import { RefreshToken, RefreshTokenDocument } from '@auth/entities';
 @Injectable()
 export class TokenService {
   private readonly secret: string;
+  private verifyTokenExpiresIn: number;
+  private resetPassTokenExpiresIn: number;
   private authTokenExpiresIn: number;
   private refreshTokenExpiresIn: number;
-  private recoveryTokenExpiresIn: number;
 
   constructor(
     @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshTokenDocument>,
@@ -21,9 +22,10 @@ export class TokenService {
     private readonly responseService: ResponseService,
   ) {
     this.secret = this.configService.get<string>('app.jwt.secret');
+    this.verifyTokenExpiresIn = this.parseExpiresInToMs(this.configService.get<string>('app.jwt.verifyTokenExpiresIn'));
+    this.resetPassTokenExpiresIn = this.parseExpiresInToMs(this.configService.get<string>('app.jwt.resetPassTokenExpiresIn'));
     this.authTokenExpiresIn = this.parseExpiresInToMs(this.configService.get<string>('app.jwt.authTokenExpiresIn'));
     this.refreshTokenExpiresIn = this.parseExpiresInToMs(this.configService.get<string>('app.jwt.refreshTokenExpiresIn'));
-    this.recoveryTokenExpiresIn = this.parseExpiresInToMs(this.configService.get<string>('app.jwt.recoveryTokenExpiresIn'));
   }
 
   private parseExpiresInToMs(expiresIn: string): number {
@@ -51,36 +53,39 @@ export class TokenService {
     }
   }
 
-  async signToken(type: 'auth' | 'refresh' | 'recovery', payload: any) {
+  async signToken(type: 'verify' | 'reset-pass' | 'auth' | 'refresh', payload: any) {
     try {
-      let expiresIn: string | number;
+      let token: string;
+      let expiresAt: Date | null = null;
 
+      let expiresIn: number;
       switch (type) {
+        case 'verify':
+          expiresIn = this.verifyTokenExpiresIn;
+          break;
+        case 'reset-pass':
+          expiresIn = this.resetPassTokenExpiresIn;
+          break;
         case 'auth':
           expiresIn = this.authTokenExpiresIn;
           break;
         case 'refresh':
           expiresIn = this.refreshTokenExpiresIn;
           break;
-        case 'recovery':
-          expiresIn = this.recoveryTokenExpiresIn;
-          break;
       }
-      const expiresAt = new Date(new Date().getTime() + expiresIn);
-      const token = this.jwtService.sign(payload, { expiresIn: expiresIn, secret: this.secret });
+      expiresAt = new Date(Date.now() + expiresIn);
+      token = this.jwtService.sign(payload, { expiresIn, secret: this.secret });
 
-      if (type === 'refresh' || type === 'recovery') {
-        await this.refreshTokenModel.create({
-          userID: payload.id,
-          token,
-          expiresAt: expiresAt.toISOString(),
-          createdAt: new Date(),
-        });
-      }
+      await this.refreshTokenModel.create({
+        userID: payload.id,
+        token,
+        expiresAt: expiresAt?.toISOString(),
+        createdAt: new Date(),
+      });
 
       return this.responseService.response({
         token,
-        expiresAt: expiresAt.getTime(),
+        expiresAt: expiresAt?.getTime() || null,
       }, 'Token creado exitosamente', "SUCCESS");
     } catch (error) {
       return this.responseService.response(null, error.message, "ERROR");

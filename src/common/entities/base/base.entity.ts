@@ -5,7 +5,7 @@ export type BaseDocument = Base & Document;
 
 @Schema({ timestamps: true })
 export class Base {
-    @Prop()
+    @Prop({ default: true })
     available: boolean;
 
     @Prop()

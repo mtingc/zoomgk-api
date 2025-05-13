@@ -42,6 +42,11 @@ export class AuthController {
     return this.authService.authToken(authTokenDto);
   }
 
+  @Get('verify-account')
+  verifyAccount(@Query('token') token: string) {
+    return this.authService.verifyAccount(token);
+  }
+
   @Post('logout')
   logout(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.logout(refreshTokenDto);
