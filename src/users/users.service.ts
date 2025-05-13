@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { ConfigService } from '@nestjs/config';
 
 import { User, UserDocument } from '@users/entities';
 import { CreateUserDto, UpdateUserDto } from '@users/dto';
@@ -15,12 +14,8 @@ import { RolesService } from '@roles/roles.service';
 
 @Injectable()
 export class UsersService {
-  private readonly frontendUrl = this.configService.get<string>('app.frontendUrl');
-  private readonly authTemplateId = this.configService.get<string>('app.sendgrid.templates.auth');
-
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    private readonly configService: ConfigService,
     private readonly hashService: HashService,
     private readonly mailService: MailService,
     private readonly paginationService: PaginationService,
@@ -82,53 +77,22 @@ export class UsersService {
 
       const createdUser = await this.userModel.findByIdAndUpdate(createdUserID, { validationToken: validationToken.token }, { new: true });
 
-      const buttonLink = `${this.frontendUrl}/auth/verify-account?token=${validationToken.token}`;
-      await this.mailService.sendTemplateEmail({
+      await this.mailService.sendEmailTemplateAuth({
         to: createdUser.email,
-        templateId: this.authTemplateId,
         dynamicTemplateData: {
-          "subject": "Verificación de correo electrónico",
-          "preheader": "Verifica tu correo electrónico en ZoomGK para acceder a tu contenido visual",
-          "head": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/imagotipo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
+          subject: "Verificación de correo electrónico",
+          preheader: "Confirma tu correo en ZoomGK y accede a tu contenido visual exclusivo",
+          body: {
+            title: "Verifica tu correo electrónico",
+            subtitle: "Confirma tu dirección de correo para comenzar a disfrutar de GRAFIK PLAY",
+            text1: "Haz clic en el botón a continuación para verificar tu correo electrónico de",
+            textAction: "GRAFIK PLAY",
+            textActionURL: "/auth/login",
+            text2: ", una vez verificado, podrás acceder a todo tu contenido.",
+            button: {
+              text: "Verificar correo electrónico",
+              url: `/auth/verify-account?token=${validationToken.token}`
             }
-          },
-          "body": {
-            "title": "Verificación de correo electrónico",
-            "subtitle": "Verifica tu correo electrónico en ZoomGK para acceder a tu contenido visual",
-            "text1": "Haz click en el siguiente botón para verificar tu correo electrónico",
-            "textAction": "GRAFIK PLAY",
-            "textActionURL": "http://zoomgk.com.mx",
-            "text2": ", haz click en el siguiente botón",
-            "button": {
-              "text": "Verificar correo electrónico",
-              "url": buttonLink
-            }
-          },
-          "footer": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/logotipo_negativo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
-            },
-            "app": {
-              "ios": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_ios.png",
-                "href": "http://zoomgk.com.mx/app/download_ios",
-                "alt": "Descarga App Store"
-              },
-              "android": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_android.png",
-                "href": "http://zoomgk.com.mx/app/download_android",
-                "alt": "Descarga en Google Play"
-              }
-            },
-            "contactURL": "http://zoomgk.com.mx/contact",
-            "faqsURL": "http://zoomgk.com.mx/faq",
-            "privacy_policyURL": "http://zoomgk.com.mx/privacy-policy"
           }
         }
       });
@@ -263,7 +227,7 @@ export class UsersService {
 
       const updatedUser = await this.userModel.findByIdAndUpdate(
         id,
-        { 
+        {
           $set: { isVerified: true },
           $unset: { validationToken: "" }
         },

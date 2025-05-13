@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 import { LoginAuthDto, SignupAuthDto, RecoveryPassDto, ResetPassDto, AuthTokenDto, RefreshTokenDto } from '@auth/dto';
 import { TokenService, HashService } from '@auth/services';
@@ -11,11 +10,7 @@ import { UsersService } from '@users/users.service';
 
 @Injectable()
 export class AuthService {
-  private readonly frontendUrl = this.configService.get<string>('app.frontendUrl');
-  private readonly authTemplateId = this.configService.get<string>('app.sendgrid.templates.auth');
-
   constructor(
-    private readonly configService: ConfigService,
     private readonly hashService: HashService,
     private readonly mailService: MailService,
     private readonly responseService: ResponseService,
@@ -113,60 +108,25 @@ export class AuthService {
 
   async recoveryPass(recoveryPassDto: RecoveryPassDto) {
     try {
-      let buttonLink = '';
       const {
         data: userByEmail,
         code: userByEmailCode,
       } = await this.usersService.findByIdentifier('email', recoveryPassDto.email);
       if (userByEmailCode !== "SUCCESS") {
-        buttonLink = `${this.frontendUrl}/auth/login`;
-
-        await this.mailService.sendTemplateEmail({
+        await this.mailService.sendEmailTemplateAuth({
           to: recoveryPassDto.email,
-          templateId: this.authTemplateId,
           dynamicTemplateData: {
-            "subject": "Solicitud de acceso a ZOOM GRAFIK",
-            "preheader": "Solicita acceso a ZOOM GRAFIK para acceder a tu contenido visual",
-            "head": {
-              "logo": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/imagotipo.png",
-                "href": "http://zoomgk.com.mx",
-                "alt": "Logo ZoomGrafiK"
+            subject: "Solicitud de acceso a ZOOM GRAFIK",
+            preheader: "Solicita acceso a ZOOM GRAFIK para acceder a tu contenido visual",
+            body: {
+              title: "No cuentas con acceso a ZOOM GRAFIK",
+              text1: "Para acceder al contenido, solicita acceso a",
+              textAction: "GRAFIK PLAY",
+              textActionURL: "/",
+              button: {
+                text: "Solicitar acceso",
+                url: `/auth/login`
               }
-            },
-            "body": {
-              "title": "No cuentas con acceso a ZOOM GRAFIK",
-              //"subtitle": "",
-              "text1": "Para acceder al contenido, solicita acceso a",
-              "textAction": "GRAFIK PLAY",
-              "textActionURL": "http://zoomgk.com.mx",
-              //"text2": "",
-              "button": {
-                "text": "Solicitar acceso",
-                "url": "http://zoomgk.com.mx/contact"
-              }
-            },
-            "footer": {
-              "logo": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/logotipo_negativo.png",
-                "href": "http://zoomgk.com.mx",
-                "alt": "Logo ZoomGrafiK"
-              },
-              "app": {
-                "ios": {
-                  "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_ios.png",
-                  "href": "http://zoomgk.com.mx/app/download_ios",
-                  "alt": "Descarga App Store"
-                },
-                "android": {
-                  "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_android.png",
-                  "href": "http://zoomgk.com.mx/app/download_android",
-                  "alt": "Descarga en Google Play"
-                }
-              },
-              "contactURL": "http://zoomgk.com.mx/contact",
-              "faqsURL": "http://zoomgk.com.mx/faq",
-              "privacy_policyURL": "http://zoomgk.com.mx/privacy-policy"
             }
           }
         });
@@ -185,53 +145,21 @@ export class AuthService {
         return this.responseService.response(null, "Error creating reset password token", "ERROR");
       }
 
-      buttonLink = `${this.frontendUrl}/auth/reset-pass?token=${resetPassToken.token}`;
-      await this.mailService.sendTemplateEmail({
+      await this.mailService.sendEmailTemplateAuth({
         to: userByEmail.email,
-        templateId: this.authTemplateId,
         dynamicTemplateData: {
-          "subject": "Recuperación de contraseña",
-          "preheader": "Recupera tu contraseña en ZoomGK para acceder a tu contenido visual",
-          "head": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/imagotipo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
+          subject: "Recuperación de contraseña",
+          preheader: "Recupera tu contraseña en ZoomGK para acceder a tu contenido visual",
+          body: {
+            title: "Recuperación de contraseña",
+            text1: "Recupera tu contraseña para acceder a tu contenido de",
+            textAction: "GRAFIK PLAY",
+            textActionURL: "/",
+            text2: ", haz click en el siguiente botón",
+            button: {
+              text: "Recuperar contraseña",
+              url: `/auth/reset-pass?token=${resetPassToken.token}`
             }
-          },
-          "body": {
-            "title": "Recuperación de contraseña",
-            //"subtitle": "",
-            "text1": "Recupera tu contraseña para acceder a tu contenido de",
-            "textAction": "GRAFIK PLAY",
-            "textActionURL": "http://zoomgk.com.mx",
-            "text2": ", haz click en el siguiente botón",
-            "button": {
-              "text": "Recuperar contraseña",
-              "url": buttonLink
-            }
-          },
-          "footer": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/logotipo_negativo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
-            },
-            "app": {
-              "ios": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_ios.png",
-                "href": "http://zoomgk.com.mx/app/download_ios",
-                "alt": "Descarga App Store"
-              },
-              "android": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_android.png",
-                "href": "http://zoomgk.com.mx/app/download_android",
-                "alt": "Descarga en Google Play"
-              }
-            },
-            "contactURL": "http://zoomgk.com.mx/contact",
-            "faqsURL": "http://zoomgk.com.mx/faq",
-            "privacy_policyURL": "http://zoomgk.com.mx/privacy-policy"
           }
         }
       });
@@ -282,52 +210,21 @@ export class AuthService {
         return this.responseService.response(null, "Error updating password", "UPDATED_FAILED");
       }
 
-      await this.mailService.sendTemplateEmail({
+      await this.mailService.sendEmailTemplateAuth({
         to: userByID.email,
-        templateId: this.authTemplateId,
         dynamicTemplateData: {
-          "subject": "Contraseña actualizada",
-          "preheader": "Contraseña actualizada en ZoomGK para acceder a tu contenido visual",
-          "head": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/imagotipo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
+          subject: "Contraseña actualizada",
+          preheader: "Contraseña actualizada en ZoomGK para acceder a tu contenido visual",
+          body: {
+            title: "Tu contraseña ha sido actualizada",
+            text1: "Haz click en el siguiente enlace para acceder a tu contenido",
+            textAction: "GRAFIK PLAY",
+            textActionURL: "/auth/login",
+            text2: ", haz click en el siguiente botón",
+            button: {
+              text: "Acceder a mi contenido",
+              url: "/auth/login"
             }
-          },
-          "body": {
-            "title": "Tu contraseña ha sido actualizada",
-            // "subtitle": "",
-            "text1": "Haz click en el siguiente enlace para acceder a tu contenido",
-            "textAction": "GRAFIK PLAY",
-            "textActionURL": "http://zoomgk.com.mx",
-            "text2": ", haz click en el siguiente botón",
-            "button": {
-              "text": "Acceder a mi contenido",
-              "url": "http://zoomgk.com.mx/auth/login"
-            }
-          },
-          "footer": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/logotipo_negativo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
-            },
-            "app": {
-              "ios": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_ios.png",
-                "href": "http://zoomgk.com.mx/app/download_ios",
-                "alt": "Descarga App Store"
-              },
-              "android": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_android.png",
-                "href": "http://zoomgk.com.mx/app/download_android",
-                "alt": "Descarga en Google Play"
-              }
-            },
-            "contactURL": "http://zoomgk.com.mx/contact",
-            "faqsURL": "http://zoomgk.com.mx/faq",
-            "privacy_policyURL": "http://zoomgk.com.mx/privacy-policy"
           }
         }
       });
@@ -466,52 +363,21 @@ export class AuthService {
         return this.responseService.response(null, "Error updating user", "ERROR");
       }
 
-      await this.mailService.sendTemplateEmail({
+      await this.mailService.sendEmailTemplateAuth({
         to: userByID.email,
-        templateId: this.authTemplateId,
         dynamicTemplateData: {
-          "subject": "Cuenta verificada",
-          "preheader": "Cuenta verificada en ZoomGK para acceder a tu contenido visual",
-          "head": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/imagotipo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
+          subject: "¡Tu cuenta ha sido verificada!",
+          preheader: "Tu cuenta en Zoom Grafik ha sido verificada. Accede ahora a tu contenido visual exclusivo.",
+          body: {
+            title: "Cuenta verificada con éxito",
+            text1: "Ya puedes acceder a tu contenido de ",
+            textAction: "GRAFIK PLAY",
+            textActionURL: "/auth/login",
+            text2: ", haz click en el siguiente botón",
+            button: {
+              text: "Acceder a mi contenido",
+              url: "/auth/login"
             }
-          },
-          "body": {
-            "title": "Tu cuenta ha sido verificada",
-            // "subtitle": "",
-            "text1": "Haz click en el siguiente enlace para acceder a tu contenido",
-            "textAction": "GRAFIK PLAY",
-            "textActionURL": "http://zoomgk.com.mx",
-            "text2": ", haz click en el siguiente botón",
-            "button": {
-              "text": "Acceder a mi contenido",
-              "url": "http://zoomgk.com.mx/auth/login"
-            }
-          },
-          "footer": {
-            "logo": {
-              "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/Logo/logotipo_negativo.png",
-              "href": "http://zoomgk.com.mx",
-              "alt": "Logo ZoomGrafiK"
-            },
-            "app": {
-              "ios": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_ios.png",
-                "href": "http://zoomgk.com.mx/app/download_ios",
-                "alt": "Descarga App Store"
-              },
-              "android": {
-                "src": "https://zoomgk-pullzone.b-cdn.net/Identidad_visual/icons/badge/badge_android.png",
-                "href": "http://zoomgk.com.mx/app/download_android",
-                "alt": "Descarga en Google Play"
-              }
-            },
-            "contactURL": "http://zoomgk.com.mx/contact",
-            "faqsURL": "http://zoomgk.com.mx/faq",
-            "privacy_policyURL": "http://zoomgk.com.mx/privacy-policy"
           }
         }
       });
